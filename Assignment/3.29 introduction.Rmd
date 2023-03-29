@@ -1,0 +1,23 @@
+### Requirement
+
+-   1 page
+
+-   single-space
+
+-   academic paper format
+
+### Revised model
+
+```{r}
+biomassC ~ as.factor(diversity) + as.factor(success) + factor(plot) + (1|site) + as.factor(seasons) + as.factor(other interested envir factors)
+
+biomassN ~ as.factor(diversity) + as.factor(success) + mineralization + nitrification + denitrification + factor(plot) + (1|site) + as.factor(seasons) + as.factor(other interested envir factors)
+```
+
+Note that
+
+-   \"plot" can also be treated as a random effect. but there are only 4 subjects for it
+
+-   interactions among our interested factors can be included in the future
+
+-   other environmental factors can be treated as continuous or categorical factors
