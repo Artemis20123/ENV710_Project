@@ -16,7 +16,7 @@ biomassN ~ as.factor(diversity) + as.factor(success) + mineralization + nitrific
 
 Note that
 
--   \"plot" can also be treated as a random effect. but there are only 4 subjects for it
+-   "plot" can also be treated as a random effect. but there are only 4 subjects for it
 
 -   interactions among our interested factors can be included in the future
 
