@@ -5,14 +5,17 @@ MTNYCData_modified <- read_csv("Data/MTNYCData_modified.csv")
 tree <- MTNYCData_modified
 ```
 
+
 ## separate core sections
 ### 0-10
 ```{r}
 tree.s1 <- as.data.frame(tree[tree$CoreSection_cm =="0-10",])
 
 ## Bulk density seem to have a strange outlier in the 1st core section:
-# tree.s1 <- subset(tree.s1, BulkDensity_g_cm3 < 100)
-# summary(tree.s1$BulkDensity_g_cm3)
+tree.s1 <- subset(tree.s1, BulkDensity_g_cm3 < 100)
+summary(tree.s1$BulkDensity_g_cm3)
+
+write.csv(tree.s1, "C:\\Users\\Siyu Sun\\Desktop\\ssy\\DKUwork\\2023Spring\\Applied Statistics\\Project\\tree_0-10.csv")
 ```
 
 ```{r}
@@ -27,6 +30,7 @@ summary(success.s1.glmer1)
 ### 10-30
 ```{r}
 tree.s2 <- as.data.frame(tree[tree$CoreSection_cm =="10--30",])
+write.csv(tree.s2, "C:\\Users\\Siyu Sun\\Desktop\\ssy\\DKUwork\\2023Spring\\Applied Statistics\\Project\\tree_10-30.csv")
 ```
 
 ```{r}
@@ -43,6 +47,8 @@ summary(success.s2.glmer1)
 ### Deeper sections
 ```{r}
 tree.s3 <- as.data.frame(tree[tree$CoreSection_cm !="0-10" & tree$CoreSection_cm !="10--30",])
+write.csv(tree.s3, "C:\\Users\\Siyu Sun\\Desktop\\ssy\\DKUwork\\2023Spring\\Applied Statistics\\Project\\tree_below30.csv")
+
 ```
 
 ```{r}
