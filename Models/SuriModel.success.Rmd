@@ -2,7 +2,7 @@
 ```{r}
 MTNYCData_modified <- subset(MTNYCData_modified, BulkDensity_g_cm3 < 2018)
 MTNYCData_modified <- MTNYCData_modified[-c(363),]
-write_csv(MTNYCData_modified, "MTNYVData_modified.csv")
+write_csv(MTNYCData_modified, "MTNYCData_modified.csv")
 ```
 
 
