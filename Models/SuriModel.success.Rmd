@@ -1,0 +1,63 @@
+
+```{r}
+library(readr)
+MTNYCData_modified <- read_csv("Data/MTNYCData_modified.csv")
+tree <- MTNYCData_modified
+```
+
+## separate core sections
+### 0-10
+```{r}
+tree.s1 <- as.data.frame(tree[tree$CoreSection_cm =="0-10",])
+
+## Bulk density seem to have a strange outlier in the 1st core section:
+# tree.s1 <- subset(tree.s1, BulkDensity_g_cm3 < 100)
+# summary(tree.s1$BulkDensity_g_cm3)
+```
+
+```{r}
+# model
+success.s1.glmer1 <- lme4::glmer(success~(1|Site)+BiomassN+RootMass_g+NO2_NO3+NH4+TIN+Nitrification+DEA, family=binomial, data=tree.s1)
+summary(success.s1.glmer1)
+  ## order of removal: mineralization, biomass C, diversity, moisture, (DEA), rock mass
+  ## removed DEA and everything else becomes non-significant???
+```
+
+
+### 10-30
+```{r}
+tree.s2 <- as.data.frame(tree[tree$CoreSection_cm =="10--30",])
+```
+
+```{r}
+success.s2.glmer <- lme4::glmer(success~(1|Site)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+NO2_NO3+NH4+TIN+Mineralization+Nitrification+DEA, family=binomial, data=tree.s2)
+summary(success.s2.glmer)
+
+success.s2.glmer1 <- lme4::glmer(success~(1|Site)+Moisture_g, family=binomial, data=tree.s2)
+summary(success.s2.glmer1)
+  ## order of removal: 
+  ## no variables are significant
+```
+
+
+### Deeper sections
+```{r}
+tree.s3 <- as.data.frame(tree[tree$CoreSection_cm !="0-10" & tree$CoreSection_cm !="10--30",])
+```
+
+```{r}
+# without season
+success.s3.glmer <- lme4::glmer(success~(1|Site)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+NO2_NO3+NH4+TIN+Mineralization+Nitrification+DEA, family=binomial, data=tree.s3)
+summary(success.s3.glmer)
+
+success.s3.glmer1 <- lme4::glmer(success~BiomassN+Moisture_g+NO2_NO3+TIN+Mineralization+Nitrification+(1|Site), family=binomial, data=tree.s3)
+summary(success.s3.glmer1)
+
+## order of removal: root mass, DEA, biomass C, rock mass, diversity, NH4
+```
+
+
+
+
+
+
