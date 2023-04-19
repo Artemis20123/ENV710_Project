@@ -48,7 +48,6 @@ summary(success.s2.glmer1)
 ```{r}
 tree.s3 <- as.data.frame(tree[tree$CoreSection_cm !="0-10" & tree$CoreSection_cm !="10--30",])
 write.csv(tree.s3, "C:\\Users\\Siyu Sun\\Desktop\\ssy\\DKUwork\\2023Spring\\Applied Statistics\\Project\\tree_below30.csv")
-
 ```
 
 ```{r}
