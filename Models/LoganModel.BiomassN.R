@@ -15,6 +15,9 @@ library(merTools)
 library(performance)
 library(lmerTest)
 
+git config pull.rebase false
+
+
 #
 tree.0.10 <- read.csv("tree_0-10.csv")
 
