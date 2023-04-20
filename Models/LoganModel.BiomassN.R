@@ -37,26 +37,49 @@ screen.cor(modified1[,-c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 18, 
 #Stepwise reduction for BiomassN
 
 m1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + Respiration + NO2_NO3 + 
-              NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + 
-              (1|Site) + (1|Plot) + (1|Year), data = modified1) 
+              NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + Year + 
+              (1|Site/Plot), data = modified1) 
+#+ (1|Year)
 summary(m1)
 plot(m1)
 vif(m1)
 isSingular(m1)
 
-m2 <- lmer(BiomassN ~ factor(diversity) + factor(Season) + Respiration + NO2_NO3 + 
-              NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + 
-              (1|Site) + (1|Plot) + (1|Year), data = modified1)
+m2 <- update(m1,.~.-Success)
+  
+#+ (1|Year)
 summary(m2)
+
+#singularity tests 
+t3 <- update(m2,.~.-Year)
+summary(t3)
+t4 <- update(t3,.~.-factor(diversity))
+summary(t4)
+t5 <- update(t4,.~.-factor(coresection))
+summary(t5)
+
+AIC(m1, m2, t3, t4, t5)
 
 m3 <- update(m2,.~.-RootMass_g)
 summary(m3)
 
-m4 <- update(m3,.~.-factor(diversity))
+m4 <- update(m3,.~.-factor(coresection))
 summary(m4)
 isSingular(m4)
+vif(m4)
 
-m5 <- update()
+AIC(m1, m2, m3, m4)
+
+m5 <- update(m4,.~.-factor(diversity))
+summary(m5)
+
+isSingular(m5)
+AIC(m1, m2, m3, m4, m5)
+
+m6 <- update(m5,.~.-Year)
+summary(m6)
+AIC(m1, m2, m3, m4, m5, m6)
+
 
 #TESTING 
 TEST <- lmer(BiomassN ~ factor(Season) + Respiration + NO2_NO3 + 
@@ -77,3 +100,64 @@ print(paste0("Matrix determinant: ", detX))
 
 #m4 is all significant 
 plot(m4)
+
+#Histograms
+ggplot(aes(x = RootMass_g), data = modified1) + 
+  geom_histogram()
+
+ggplot(aes(x = RockMass_g), data = modified1) + 
+  geom_histogram()
+
+ggplot(aes(x = Respiration), data = modified1) + 
+  geom_histogram()
+
+ggplot(aes(x = BiomassN), data = modified1) + 
+  geom_histogram()
+
+ggplot(aes(x = Moisture_g), data = modified1) + 
+  geom_histogram()
+
+ggplot(aes(x = BulkDensity_g_cm3), data = modified1) + 
+  geom_histogram()
+
+ggplot(aes(x = BiomassC), data = modified1) + 
+  geom_histogram()
+
+ggplot(aes(x = NO2_NO3), data = modified1) + 
+  geom_histogram()
+
+ggplot(aes(x = NH4), data = modified1) + 
+  geom_histogram()
+
+ggplot(aes(x = Nitrification), data = modified1) + 
+  geom_histogram()
+
+ggplot(aes(x = DEA), data = modified1) + 
+  geom_histogram()
+
+#Start without rootmass at all 
+
+nr1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + Respiration + NO2_NO3 + 
+             NH4 + Nitrification + Moisture_g + factor(coresection) + Year + 
+             (1|Site/Plot), data = modified1) 
+
+#Updated dataset with no NA 
+
+noNAdata <- read.csv("MTNYCData_modified2_noDEAna.csv")
+
+noNA1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + Respiration + NO2_NO3 + 
+             NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + Year + 
+             (1|Site/Plot), data = noNAdata) 
+summary(noNA1)
+
+noNA2 <- update(noNA1,.~.-Success)
+summary(noNA2)
+
+noNA3 <- update(noNA2,.~.-Year)
+summary(noNA3)
+
+noNA4 <- update(noNA3,.~.-factor(diversity))
+summary(noNA4)
+
+noNA5 <- update(noNA4,.~.-RootMass_g)
+summary(noNA5)
