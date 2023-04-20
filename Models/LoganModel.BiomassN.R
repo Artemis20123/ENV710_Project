@@ -101,39 +101,60 @@ print(paste0("Matrix determinant: ", detX))
 #m4 is all significant 
 plot(m4)
 
-#Histograms
-ggplot(aes(x = RootMass_g), data = modified1) + 
-  geom_histogram()
+#Histograms with the noNA data 
 
-ggplot(aes(x = RockMass_g), data = modified1) + 
+ggplot(aes(x = RootMass_g), data = noNAdata) + 
   geom_histogram()
+ggplot(aes(x = log(RootMass_g)), data = noNAdata) + 
+  geom_histogram() #NaNs Produced 
 
-ggplot(aes(x = Respiration), data = modified1) + 
+ggplot(aes(x = RockMass_g), data = noNAdata) + 
   geom_histogram()
+ggplot(aes(x = log(RockMass_g)), data = noNAdata) + 
+  geom_histogram() #NaNs Produced 
 
-ggplot(aes(x = BiomassN), data = modified1) + 
+ggplot(aes(x = Respiration), data = noNAdata) + 
   geom_histogram()
+ggplot(aes(x = log(Respiration)), data = noNAdata) + 
+  geom_histogram() #Works 
 
-ggplot(aes(x = Moisture_g), data = modified1) + 
+ggplot(aes(x = BiomassN), data = noNAdata) + 
   geom_histogram()
+ggplot(aes(x = log(BiomassN)), data = noNAdata) + 
+  geom_histogram() #NaNs Produced
 
-ggplot(aes(x = BulkDensity_g_cm3), data = modified1) + 
+ggplot(aes(x = Moisture_g), data = noNAdata) + 
   geom_histogram()
+ggplot(aes(x = log(Moisture_g)), data = noNAdata) + 
+  geom_histogram() #works 
 
-ggplot(aes(x = BiomassC), data = modified1) + 
-  geom_histogram()
+ggplot(aes(x = BulkDensity_g_cm3), data = noNAdata) + 
+  geom_histogram() #fine without log 
 
-ggplot(aes(x = NO2_NO3), data = modified1) + 
+ggplot(aes(x = BiomassC), data = noNAdata) + 
   geom_histogram()
+ggplot(aes(x = log(BiomassC)), data = noNAdata) + 
+  geom_histogram()#Works 
 
-ggplot(aes(x = NH4), data = modified1) + 
+ggplot(aes(x = NO2_NO3), data = noNAdata) + 
   geom_histogram()
+ggplot(aes(x = log(NO2_NO3)), data = noNAdata) + 
+  geom_histogram() #NaNs produced 
 
-ggplot(aes(x = Nitrification), data = modified1) + 
+ggplot(aes(x = NH4), data = noNAdata) + 
   geom_histogram()
+ggplot(aes(x = log(NH4)), data = noNAdata) + 
+  geom_histogram()#NaNs Produced  
 
-ggplot(aes(x = DEA), data = modified1) + 
+ggplot(aes(x = Nitrification), data = noNAdata) + 
   geom_histogram()
+ggplot(aes(x = log(Nitrification)), data = noNAdata) + 
+  geom_histogram() #NaNs produced 
+
+ggplot(aes(x = DEA), data = noNAdata) + 
+  geom_histogram()
+ggplot(aes(x = log(DEA)), data = noNAdata) + 
+  geom_histogram() #NaNs Produces 
 
 #Start without rootmass at all 
 
@@ -161,3 +182,31 @@ summary(noNA4)
 
 noNA5 <- update(noNA4,.~.-RootMass_g)
 summary(noNA5)
+
+#Updated dataset with no NA AND log transformed variables dependent variable.
+#only worked when only respriration was logged. logging Moisture greated singluarity 
+
+noNAdata <- read.csv("MTNYCData_modified2_noDEAna.csv")
+#Respirations, Moisture_g, 
+logNoNA1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + log(Respiration) + NO2_NO3 + 
+                NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + Year + 
+                (1|Site/Plot), data = noNAdata) 
+summary(noNA1)
+
+logNoNA2 <- update(logNoNA1,.~.-Success)
+summary(logNoNA2)
+
+logNoNA3 <- update(logNoNA2,.~.-Year)
+summary(logNoNA3)
+
+logNoNA4 <- update(logNoNA3,.~.-log(Respiration))
+summary(logNoNA4)
+
+logNoNA5 <- update(logNoNA4,.~.-RootMass_g)
+summary(logNoNA5)
+
+logNoNA6 <- update(logNoNA5,.~.-factor(diversity))
+summary(logNoNA6)
+
+#test of all models 
+AIC(noNA1, noNA2, noNA3, noNA4, noNA5, logNoNA1, logNoNA2, logNoNA3, logNoNA4, logNoNA5, logNoNA6)
