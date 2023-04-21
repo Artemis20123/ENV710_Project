@@ -54,10 +54,20 @@ influencePlot(lm6)
 vif(lm6)
 check_model(lm6, check = c("vif"))
 
-## graphs
+## Graphs
+
 ```
 
 ```{r}
+# Model 2: Biomass N
+
+## Full model
+
+## Model reduction
+
+## Assumptions
+
+## Graphs
 
 ```
 
