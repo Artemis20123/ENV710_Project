@@ -255,9 +255,12 @@ summary(finalm6)
 finalm7 <- update(finalm6,.~.-factor(coresection))
 summary(finalm7)
 
+#Final model: factor(diversity), factor(season), NO2_NO3, NH4, Nitrification, Biomass C
+
 AIC(finalm1, finalm2, finalm3, finalm4, finalm5, finalm6, finalm7)
 plot(finalm7)
 vif(finalm7)
 check_autocorrelation(finalm7)
 
-
+colnames(tree.l)
+screen.cor(tree.l[,-c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 17, 19, 21, 22, 23, 14, 25)])
