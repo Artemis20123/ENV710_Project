@@ -15,6 +15,8 @@ library(merTools)
 library(performance)
 library(lmerTest)
 library(car)
+library(MuMIn)
+library(lme4)
 
 #data exploration 
 
@@ -29,7 +31,7 @@ library(car)
 modified1 <- read.csv("MTNYCData_modified1.csv")
 
 #screen for correlation 
-source("screen_cor.R")
+#source("screen_cor.R")
 colnames(modified1)
 screen.cor(modified1[,-c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 18, 19, 20, 24, 26, 29, 30, 31, 32, 35)])
 
@@ -89,12 +91,12 @@ TEST <- lmer(BiomassN ~ factor(Season) + Respiration + NO2_NO3 +
 #finding what variables are causing singularity. 
 
 # calculate the matrix rank and determinant
-rankm4 <- qr(m4)$rank
-detm4 <- det(m4)
+#rankm4 <- qr(m4)$rank
+#detm4 <- det(m4)
 
 # print the rank and determinant
-print(paste0("Matrix rank: ", rankX))
-print(paste0("Matrix determinant: ", detX))
+#print(paste0("Matrix rank: ", rankX))
+#print(paste0("Matrix determinant: ", detX))
 
 
 
@@ -227,6 +229,8 @@ for (i in 1:326){
   tree.l$DEA[i] <- log(tree$DEA[i] + abs(min(tree$DEA)) + 0.001)
 }
 
+no.out.tree.l <- tree.l[-c(33,29,193),]
+
 ggpairs(tree.l[,c(9:17)])
 ggpairs(tree.l[,c(18:25)])
 
@@ -249,18 +253,169 @@ summary(finalm4)
 finalm5 <- update(finalm4,.~.-Moisture_g)
 summary(finalm5)
 
-finalm6 <- update(finalm5,.~.-Success)
-summary(finalm6)
+finaFinalModel <- update(finalm5,.~.-Success)
+summary(finaFinalModel)
 
-finalm7 <- update(finalm6,.~.-factor(coresection))
+finalm7 <- update(finaFinalModel,.~.-factor(coresection))
 summary(finalm7)
 
 #Final model: factor(diversity), factor(season), NO2_NO3, NH4, Nitrification, Biomass C
 
-AIC(finalm1, finalm2, finalm3, finalm4, finalm5, finalm6, finalm7)
+AIC(finalm1, finalm2, finalm3, finalm4, finalm5, finaFinalModel, finalm7)
 plot(finalm7)
 vif(finalm7)
 check_autocorrelation(finalm7)
 
 colnames(tree.l)
 screen.cor(tree.l[,-c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 17, 19, 21, 22, 23, 14, 25)])
+
+#no outliers
+
+out.finalm1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + Respiration + NO2_NO3 + 
+                  NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + Year + BiomassC +
+                  (1|Site/Plot), data = no.out.tree.l) 
+summary(out.finalm1)
+
+out.finalm2 <- update(out.finalm1,.~.-Respiration)
+summary(out.finalm2)
+
+out.finalm3 <- update(out.finalm2,.~.-factor(Season))
+summary(out.finalm3)
+
+out.finalm4 <- update(out.finalm3,.~.-Moisture_g)
+summary(out.finalm4)
+
+out.finalm5 <- update(out.finalm4,.~.-factor(coresection))
+summary(out.finalm5)
+
+out.finaFinalModel <- update(out.finalm5,.~.-Success)
+summary(out.finaFinalModel)
+
+out.finalm7 <- update(out.finaFinalModel,.~.-RootMass_g)
+summary(out.finalm7)
+
+out.finalm8 <- update(out.finalm7,.~.-Year)
+summary(out.finalm8)
+
+AIC(out.finalm1, out.finalm2, out.finalm3, out.finalm4, out.finalm5, out.finaFinalModel, out.finalm7, out.finalm8)
+plot(out.finalm7)
+vif(out.finalm7)
+check_autocorrelation(out.finalm8)
+
+car::influencePlot(out.finalm7)
+
+#Year as a random effect. 
+
+noY.finalm1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + Respiration + NO2_NO3 + 
+                      NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + BiomassC +
+                      (1|Site/Plot), data = no.out.tree.l) 
+summary(noY.finalm1)
+
+noY.finalm2 <- update(noY.finalm1,.~.-Respiration)
+summary(noY.finalm2)
+
+noY.finalm3 <- update(noY.finalm2,.~.-Success)
+summary(noY.finalm3)
+
+noY.finalm4 <- update(noY.finalm3,.~.-factor(coresection))
+summary(noY.finalm4)
+
+noY.finalm5 <- update(noY.finalm4,.~.-Moisture_g)
+summary(noY.finalm5)
+
+noY.finaFinalModel <- update(noY.finalm5,.~.-RootMass_g)
+summary(noY.finaFinalModel)
+
+AIC(out.finalm1, out.finalm2, out.finalm3, out.finalm4, out.finalm5, out.finaFinalModel, out.finalm7, out.finalm8,
+    noY.finalm1, noY.finalm2, noY.finalm3, noY.finalm4, noY.finalm5, noY.finaFinalModel)
+plot(noY.finaFinalModel)
+vif(noY.finaFinalModel)
+check_autocorrelation(noY.finaFinalModel)
+
+#noY.finalm7 <- update(noY.finaFinalModel,.~.-RootMass_g)
+#summary(noY.finalm7)
+
+#FINAL MODEL 
+
+FinalModel <- update(noY.finalm5,.~.-RootMass_g)
+summary(FinalModel)
+plot(FinalModel)
+var.test(FinalModel)
+vif(FinalModel)
+check_autocorrelation(FinalModel)
+r.squaredGLMM(FinalModel)
+
+success.Final.Model <- simulateResiduals(fittedModel = FinalModel)
+plot(success.Final.Model)
+
+#BiomassC Plot 
+ 
+Ncoef <- fixef(FinalModel)
+Ncoef
+
+success.eq1 <- function(x){Ncoef[1]+Ncoef[2]+
+    Ncoef[3]+Ncoef[4]*mean(no.out.tree.l$NO2_NO3)+
+    Ncoef[5]*mean(no.out.tree.l$NH4)+Ncoef[6]*mean(no.out.tree.l$Nitrification)+Ncoef[7]*x}
+success.eq2 <- function(x){Ncoef[1]+
+    Ncoef[3]+Ncoef[4]*mean(no.out.tree.l$NO2_NO3)+
+    Ncoef[5]*mean(no.out.tree.l$NH4)+Ncoef[6]*mean(no.out.tree.l$Nitrification)+Ncoef[7]*x}
+
+ggplot(no.out.tree.l, aes(x=BiomassC, y=BiomassN)) + 
+  geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) +
+  stat_function(fun=success.eq1, geom="line", linewidth=0.7, aes(color="High")) +
+  stat_function(fun=success.eq2, geom="line", linewidth=0.7, aes(color="Low")) + 
+  theme_bw() +
+  theme(legend.position = "right") +
+  labs(y = "BiomassN", x = "BiomassC") +
+  scale_color_viridis("Diversity", discrete = TRUE)
+
+
+
+## Assumption checks
+
+### dept var normality
+
+
+# dept vars normality
+shapiro.test(no.out.tree.l$BiomassN)
+shapiro.test(log(no.out.tree.l$BiomassN))
+
+
+### Residuals mean & normality
+
+mean(residuals(FinalModel))
+shapiro.test(residuals(FinalModel))
+
+# i think the one below is better
+library(DHARMa)
+lmm6 <- simulateResiduals(fittedModel = FinalModel) 
+plot(lmm6)
+
+library(performance)
+performance::check_model(FinalModel, check = c("reqq", "qq", "linearity"))
+
+### Goodness of fit / R2 FE RE
+
+library(MuMIn)
+MuMIn::r.squaredGLMM(FinalModel)
+
+library(merTools)
+merTools::plotFEsim(FEsim(FinalModel), intercept = T)
+library(lattice)
+dotplot(ranef(FinalModel))
+
+#In the random effect term we are indicating that campaign is nested within city.
+
+### Outlier test
+
+library(car)
+outlierTest(FinalModel)
+influencePlot(FinalModel)
+
+### Multicollinearity
+
+vif(FinalModel)
+performance::check_model(FinalModel, check = c("vif"))
+
+
+
