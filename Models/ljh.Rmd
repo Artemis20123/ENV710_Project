@@ -1,0 +1,93 @@
+```{r setup}
+library(dplyr)
+library(lme4)
+library(lmerTest)
+library(lmtest)
+
+df1 <- read.csv("Data/MTNYCData_modified2_noDEAna.csv")
+```
+
+## Model reduction
+
+```{r}
+lm1 <- lmer(log(BiomassC) ~ Success + factor(diversity) + factor(Season) + Respiration + BiomassN + NO2_NO3 + NH4 + RootMass_g + Moisture_g + factor(coresection) + Year + (1|Site/Plot), data = df1)
+
+lm2 <- update(lm1, ~.-factor(Season))
+
+lm3 <- update(lm2, ~.-NH4)
+
+lm4 <- update(lm3, ~.-RootMass_g)
+
+lm5 <- update(lm4, ~.-Year)
+
+lm6 <- update(lm5, ~.-factor(diversity))
+summary(lm6)
+
+AIC(lm1, lm2, lm3,lm4,lm5,lm6)
+```
+
+## Assumption checks
+
+### dept var normality
+
+```{r}
+# dept vars normality
+shapiro.test(df1$BiomassC)
+shapiro.test(log(df1$BiomassC))
+```
+
+### Residuals mean & normality
+
+```{r}
+mean(residuals(lm6))
+shapiro.test(residuals(lm6))
+```
+
+```{r, fig.cap="performance plots", fig.pos="h"}
+# i think the one below is better
+library(DHARMa)
+lmm6 <- simulateResiduals(fittedModel = lm6) 
+plot(lmm6)
+
+library(performance)
+performance::check_model(lm6, check = c("reqq", "qq", "linearity"))
+```
+
+### Goodness of fit / R2 FE RE
+
+```{r}
+library(MuMIn)
+MuMIn::r.squaredGLMM(lm6)
+
+library(merTools)
+merTools::plotFEsim(FEsim(lm6), intercept = T)
+library(lattice)
+dotplot(ranef(lm6))
+```
+
+In the random effect term we are indicating that campaign is nested within city.
+
+### Outlier test
+
+```{r}
+library(car)
+outlierTest(lm6)
+influencePlot(lm6)
+```
+
+### Multicollinearity
+
+```{r}
+vif(lm6)
+performance::check_model(lm6, check = c("vif"))
+```
+
+## Discussion
+
+High success afforestation sites had significantly larger carbon pools than low success afforestation sites and degraded NYC sites. We suggest that these differences were created by interactions between initial site conditions that facilitated plant community establishment and growth, which in turn increased soil carbon accumulation. These initial site conditions include land use history that influences soil physical and chemical factors, as well as proximity to existing forest stands.
+
+Organic carbon in turn influences soil biogeochemical properties and functions through its influence on nutrient cycling and water retention, which supports plant growth (Ontl and Schulte, 2012).
+
+Diversity treatments had no effect on soil carbon levels, but these may need a longer time period to emerge.
+
+suggest that afforestation may enhance the capacity of urban soils to store carbon compared to urban degraded soils, but that urban soil properties and site characteristics constrain this capacity
