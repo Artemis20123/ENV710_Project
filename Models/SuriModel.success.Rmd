@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE
 
 ```{r}
 ## load packages
-pacman::p_load(ggplot2, lme4, lmerTest, GGally, car, DHARMa, boot)
+pacman::p_load(ggplot2, lme4, lmerTest, GGally, car, DHARMa, boot, viridis, ggpubr)
 ```
 
 ```{r}
@@ -23,6 +23,37 @@ tree <- MTNYCData_modified2_noDEAna
 ggpairs(tree[,c(9:17)])
 ggpairs(tree[,c(18:25)])
 ```
+
+```{r}
+# Logan's biomass N
+finalm1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + Respiration + NO2_NO3 + 
+                   NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + Year + BiomassC +
+                   (1|Site/Plot), data = tree.l) 
+summary(finalm1)
+
+finalm2 <- update(finalm1,.~.-Year)
+summary(finalm2)
+
+finalm3 <- update(finalm2,.~.-Respiration)
+summary(finalm3)
+
+finalm4 <- update(finalm3,.~.-RootMass_g)
+summary(finalm4)
+
+finalm5 <- update(finalm4,.~.-Moisture_g)
+summary(finalm5)
+
+finalm6 <- update(finalm5,.~.-Success)
+summary(finalm6)
+
+finalm7 <- update(finalm6,.~.-factor(coresection))
+summary(finalm7)
+
+sort(abs(resid(finalm7)))
+car::influencePlot(finalm7)
+
+```
+
 
 ```{r}
 ## centering with regard to z-score
@@ -102,20 +133,69 @@ library(MuMIn)
 r.squaredGLMM(success.glmer.c3)
 
 (success.glmer.c3.logodds <- fixef(success.glmer.c3))
+(success.glmer.c3.odds <- exp(success.glmer.c3.logodds))
 (success.glmer.c3.prob <- inv.logit(success.glmer.c3.logodds))
+
+ ## every 1-unit change in X will result in the log odds of failure increase/decrease by `slope`
+    ## for every 1-unit change in temperature, the odds of failure increase/decrease by a factor of exp(slope) or (1-exp(slope))*100 percent
+
+log.odds <- coef(model)
+  # log-odds scale
+  # any value between positive and negative infinity
+    ## positive: increasing occurrence of an event
+    ## negative: decreasing occurrence of an event
+odds <- exp(coef(model))
+  # odds
+  # any value between 0 and positive infinity
+    ## >1: increasing occurrence of an event
+    ## <1: decreasing occurrence of an event
+inv.logit(log.odds)
+  # probability 
+    ## < 0.5: decreasing occurrence of an event
+    ## > 0.5: increasing occurrence of an event
+
+## graph 1: 
+success.eq1 <- function(x){inv.logit(success.glmer.c3.logodds[1]+success.glmer.c3.logodds[2]+success.glmer.c3.logodds[3]*x+success.glmer.c3.logodds[4]*mean(tree.c$BiomassC)+success.glmer.c3.logodds[5]*mean(tree.c$RootMass_g)+success.glmer.c3.logodds[6]*mean(tree.c$BulkDensity_g_cm3))}
+
+ggplot(tree.c, aes(x=BiomassN, y=success)) + 
+  geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) +
+  stat_function(fun=success.eq1, geom="line", linewidth=0.7, aes(color="BiomassN")) +
+  theme_bw() +
+  theme(legend.position = "right") +
+  labs(y = "Probability of afforestation success", x = "Biomass N, centered by z-score") +
+  scale_color_viridis("BiomassN", discrete = TRUE)
+
+
+## graph 2 (glm)
+ggplot(tree.c, aes(x=BiomassN, y=success)) + 
+  geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) + 
+  geom_line(stat = "smooth", method = "glm", method.args = list(family = "binomial"), size = 1.1) + 
+  geom_ribbon(stat="smooth", method = "glm", se = TRUE, alpha = 0.1, method.args = list(family = "binomial")) +
+  ylab("Probability of afforestation success") + 
+  xlab("Biomass N, centered by z-score") + 
+  theme_bw()
 
 ```
 
 ```{r}
 # log-transformed
+## full model
 success.glmer.l <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NH4+Nitrification+DEA+BulkDensity_g_cm3+factor(coresection), family=binomial, data=tree.l)
 summary(success.glmer.l)
   # error: model failed to converge with max|grad| = 0.198764 (tol = 0.002, component 1)
 
+## backward reduced
 success.glmer.l3 <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC, family=binomial, data=tree.l)
 summary(success.glmer.l3) # just retain variables of interest
   # order of removal: diversity, nitrification, biomass C, respiration, bulk density, root mass, NH4, DEA (stop showing error), biomass N 
   # singularity issue
+```
+
+```{r}
+# As part of our troubleshoot processes, we also tested the following code (Thank you Ankita!) on the original dataset when we did not remove all the NAs. 
+test.data <- as.data.frame(MTNYCData_modified1[MTNYCData_modified1$coresection==2,])
+testing <- glmer(success~(1|Site)+scale(BiomassN)+scale(RockMass_g)+scale(Moisture_g)+scale(BulkDensity_g_cm3)+scale(BiomassC), family=binomial, data=test.data, control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)))
+summary(testing)
 ```
 
 
