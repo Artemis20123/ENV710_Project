@@ -1,0 +1,121 @@
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+# Load dataset and packages
+tree <- read.csv("Data/MTNYCData_modified2_noDEAna.csv")
+pacman::p_load(dplyr, ggplot2, lme4, lmerTest, lmtest, GGally, car, DHARMa, boot, viridis, ggpubr, performance, MuMIn, merTools, lattice)
+
+```
+
+```{r}
+# Data exploration
+ggpairs(tree[,c(9:17)])
+ggpairs(tree[,c(18:25)])
+
+```
+
+```{r}
+# Model 1: Biomass C
+## Full model
+lm1 <- lmer(log(BiomassC) ~ Success + factor(diversity) + factor(Season) + Respiration + BiomassN + NO2_NO3 + NH4 + RootMass_g + Moisture_g + factor(coresection) + Year + (1|Site/Plot), data = tree)
+summary(lm1)
+
+## Model reduction
+lm2 <- update(lm1, ~.-factor(Season))
+lm3 <- update(lm2, ~.-NH4)
+lm4 <- update(lm3, ~.-RootMass_g)
+lm5 <- update(lm4, ~.-Year)
+lm6 <- update(lm5, ~.-factor(diversity))
+summary(lm6)
+AIC(lm1, lm2, lm3,lm4,lm5,lm6)
+
+## Assumptions
+### dept vars normality
+shapiro.test(tree$BiomassC)
+shapiro.test(log(tree$BiomassC))
+### Residuals mean & normality
+mean(residuals(lm6))
+shapiro.test(residuals(lm6))
+lmm6 <- simulateResiduals(fittedModel = lm6) 
+plot(lmm6)
+check_model(lm6, check = c("reqq", "qq", "linearity"))
+### Goodness of fit / R2 FE RE
+r.squaredGLMM(lm6)
+plotFEsim(FEsim(lm6), intercept = T)
+dotplot(ranef(lm6))
+### Outlier test
+outlierTest(lm6)
+influencePlot(lm6)
+### Multicollinearity
+vif(lm6)
+check_model(lm6, check = c("vif"))
+
+## graphs
+```
+
+```{r}
+
+```
+
+```{r}
+# Model 3: success
+## centering with regard to z-score
+tree.c <- tree
+tree.c$RockMass_g <- (tree$RockMass_g-mean(tree$RockMass_g))/sd(tree$RockMass_g)
+tree.c$RootMass_g <- (tree$RootMass_g-mean(tree$RootMass_g))/sd(tree$RootMass_g)
+tree.c$Moisture_g <- (tree$Moisture_g-mean(tree$Moisture_g))/sd(tree$Moisture_g)
+tree.c$BulkDensity_g_cm3 <- (tree$BulkDensity_g_cm3-mean(tree$BulkDensity_g_cm3))/sd(tree$BulkDensity_g_cm3)
+tree.c$BiomassC <- (tree$BiomassC-mean(tree$BiomassC))/sd(tree$BiomassC)
+tree.c$Respiration <- (tree$Respiration-mean(tree$Respiration))/sd(tree$Respiration)
+tree.c$NO2_NO3 <- (tree$NO2_NO3-mean(tree$NO2_NO3))/sd(tree$NO2_NO3)
+tree.c$NH4 <- (tree$NH4-mean(tree$NH4))/sd(tree$NH4)
+tree.c$TIN <- (tree$TIN-mean(tree$TIN))/sd(tree$TIN)
+tree.c$BiomassN <- (tree$BiomassN-mean(tree$BiomassN))/sd(tree$BiomassN)
+tree.c$Mineralization <- (tree$Mineralization-mean(tree$Mineralization))/sd(tree$Mineralization)
+tree.c$Nitrification <- (tree$Nitrification-mean(tree$Nitrification))/sd(tree$Nitrification)
+tree.c$DEA <- (tree$DEA-mean(tree$DEA))/sd(tree$DEA)
+
+## Full model
+success.glmer.c <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NH4+Nitrification+DEA+BulkDensity_g_cm3+factor(coresection), family=binomial, data=tree.c)
+summary(success.glmer.c)
+  # error: model failed to converge with max|grad| = 0.203044 (tol = 0.002, component 1)
+
+## Model reduction
+success.glmer.c1 <- update(success.glmer.c, .~.-Diversity)
+success.glmer.c2 <- update(success.glmer.c1, .~.-Nitrification)
+success.glmer.c3 <- update(success.glmer.c2, .~.-BiomassC)
+success.glmer.c4 <- update(success.glmer.c3, .~.-Respiration)
+success.glmer.c5 <- update(success.glmer.c4, .~.-BulkDensity_g_cm3)
+success.glmer.c6 <- update(success.glmer.c5, .~.-RootMass_g)
+success.glmer.c7 <- update(success.glmer.c6, .~.-NH4)
+success.glmer.c8 <- update(success.glmer.c7, .~.-DEA) # stop showing error
+success.glmer.c9 <- update(success.glmer.c8, .~.-BiomassN) # no significant variables
+### Model with variables of interest
+success.glmer.c10 <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RootMass_g+BulkDensity_g_cm3, family=binomial, data=tree.c)
+summary(success.glmer.c10)
+  # singularity issues without bulk density
+  # no significant variables
+
+## Assumptions
+
+
+## graphs
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
