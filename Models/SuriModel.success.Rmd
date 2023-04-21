@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE
 
 ```{r}
 ## load packages
-pacman::p_load(ggplot2, lme4, lmerTest, GGally)
+pacman::p_load(ggplot2, lme4, lmerTest, GGally, car, DHARMa)
 ```
 
 ```{r}
@@ -72,8 +72,9 @@ success.glmer <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMas
 summary(success.glmer)
   # error 1: model failed to converge
   # error 2: model is nearly unidentifiable: large eigenvalue ratio - rescale variables?
+```
 
-
+```{r}
 # centered
 success.glmer.c <- glmer(success~(1|Site/Plot)+Diversity+Season+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NH4+Nitrification+DEA+BulkDensity_g_cm3+factor(coresection), family=binomial, data=tree.c)
 summary(success.glmer.c)
@@ -87,12 +88,21 @@ success.glmer.c2 <- glmer(success~(1|Site/Plot)+RockMass_g+Moisture_g+factor(cor
 summary(success.glmer.c2) # without season
   # order of removal: diversity, nitrification, biomass C, respiration, bulk density, root mass, NH4, DEA (stop showing error), biomass N 
   # no significant variables
-success.glmer.c3 <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC, family=binomial, data=tree.c)
+success.glmer.c3 <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RootMass_g+BulkDensity_g_cm3, family=binomial, data=tree.c)
 summary(success.glmer.c3) # just retain variables of interest
   # order of removal: diversity, nitrification, biomass C, respiration, bulk density, root mass, NH4, DEA (stop showing error), biomass N 
-  # singularity issues
+  # singularity issues without bulk density
+  # no significant variables
 
+vif(success.glmer.c3)
+testZeroInflation(success.glmer.c3)
+success.simres <- simulateResiduals(fittedModel = success.glmer.c3)
+plot(success.simres)
+library(MuMIn)
+r.squaredGLMM(success.glmer.c3)
+```
 
+```{r}
 # log-transformed
 success.glmer.l <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NH4+Nitrification+DEA+BulkDensity_g_cm3+factor(coresection), family=binomial, data=tree.l)
 summary(success.glmer.l)
