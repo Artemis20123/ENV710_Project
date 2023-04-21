@@ -110,6 +110,15 @@ summary(success.glmer)
 success.glmer.c <- glmer(success~(1|Site/Plot)+Diversity+Season+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NH4+Nitrification+DEA+BulkDensity_g_cm3+factor(coresection), family=binomial, data=tree.c)
 summary(success.glmer.c)
   # error: model failed to converge with max|grad| = 0.203044 (tol = 0.002, component 1)
+success.glmer.c1 <- update(success.glmer.c, .~.-Diversity)
+success.glmer.c2 <- update(success.glmer.c1, .~.-Nitrification)
+success.glmer.c3 <- update(success.glmer.c2, .~.-BiomassC)
+success.glmer.c4 <- update(success.glmer.c3, .~.-Respiration)
+success.glmer.c5 <- update(success.glmer.c4, .~.-BulkDensity_g_cm3)
+success.glmer.c6 <- update(success.glmer.c5, .~.-RootMass_g)
+success.glmer.c7 <- update(success.glmer.c6, .~.-NH4)
+success.glmer.c8 <- update(success.glmer.c7, .~.-DEA) # stop showing error
+success.glmer.c9 <- update(success.glmer.c8, .~.-BiomassN)
 
 success.glmer.c1 <- glmer(success~(1|Site/Plot)+Moisture_g+factor(coresection), family=binomial, data=tree.c)
 summary(success.glmer.c1) # with season
@@ -157,19 +166,16 @@ inv.logit(log.odds)
 ## graph 1: 
 success.eq1 <- function(x){inv.logit(success.glmer.c3.logodds[1]+success.glmer.c3.logodds[2]+success.glmer.c3.logodds[3]*x+success.glmer.c3.logodds[4]*mean(tree.c$BiomassC)+success.glmer.c3.logodds[5]*mean(tree.c$RootMass_g)+success.glmer.c3.logodds[6]*mean(tree.c$BulkDensity_g_cm3))}
 
-ggplot(tree.c, aes(x=BiomassN, y=success)) + 
+gg1 <- ggplot(tree.c, aes(x=BiomassN, y=success)) + 
   geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) +
-  stat_function(fun=success.eq1, geom="line", linewidth=0.7, aes(color="BiomassN")) +
+  stat_function(fun=success.eq1, geom="line", linewidth=0.7, color="blue") +
   theme_bw() +
-  theme(legend.position = "right") +
-  labs(y = "Probability of afforestation success", x = "Biomass N, centered by z-score") +
-  scale_color_viridis("BiomassN", discrete = TRUE)
-
+  labs(y = "Probability of afforestation success", x = "Biomass N, centered by z-score")
 
 ## graph 2 (glm)
-ggplot(tree.c, aes(x=BiomassN, y=success)) + 
+gg2 <- ggplot(tree.c, aes(x=BiomassN, y=success)) + 
   geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) + 
-  geom_line(stat = "smooth", method = "glm", method.args = list(family = "binomial"), size = 1.1) + 
+  geom_line(stat = "smooth", method = "glm", method.args = list(family = "binomial"), size = 1.1, color="purple") + 
   geom_ribbon(stat="smooth", method = "glm", se = TRUE, alpha = 0.1, method.args = list(family = "binomial")) +
   ylab("Probability of afforestation success") + 
   xlab("Biomass N, centered by z-score") + 
