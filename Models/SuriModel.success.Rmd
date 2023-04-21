@@ -1,46 +1,265 @@
+---
+title: "Untitled"
+author: "Siyu (Suri) Sun"
+date: "2023-04-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE)
+```
 
 ```{r}
-MTNYCData_modified <- subset(MTNYCData_modified, BulkDensity_g_cm3 < 2018)
-MTNYCData_modified <- MTNYCData_modified[-c(363),]
-write_csv(MTNYCData_modified, "MTNYCData_modified.csv")
+## load packages
+pacman::p_load(ggplot2, lme4, lmerTest, GGally, car, DHARMa, boot, viridis, ggpubr)
 ```
+
+```{r}
+## load dataset
+tree <- MTNYCData_modified2_noDEAna
+```
+
+```{r}
+ggpairs(tree[,c(9:17)])
+ggpairs(tree[,c(18:25)])
+```
+
+```{r}
+# Logan's biomass N
+finalm1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + Respiration + NO2_NO3 + 
+                   NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + Year + BiomassC +
+                   (1|Site/Plot), data = tree.l) 
+summary(finalm1)
+
+finalm2 <- update(finalm1,.~.-Year)
+summary(finalm2)
+
+finalm3 <- update(finalm2,.~.-Respiration)
+summary(finalm3)
+
+finalm4 <- update(finalm3,.~.-RootMass_g)
+summary(finalm4)
+
+finalm5 <- update(finalm4,.~.-Moisture_g)
+summary(finalm5)
+
+finalm6 <- update(finalm5,.~.-Success)
+summary(finalm6)
+
+finalm7 <- update(finalm6,.~.-factor(coresection))
+summary(finalm7)
+
+sort(abs(resid(finalm7)))
+car::influencePlot(finalm7)
+
+```
+
+
+```{r}
+## centering with regard to z-score
+tree.c <- tree
+tree.c$RockMass_g <- (tree$RockMass_g-mean(tree$RockMass_g))/sd(tree$RockMass_g)
+tree.c$RootMass_g <- (tree$RootMass_g-mean(tree$RootMass_g))/sd(tree$RootMass_g)
+tree.c$Moisture_g <- (tree$Moisture_g-mean(tree$Moisture_g))/sd(tree$Moisture_g)
+tree.c$BulkDensity_g_cm3 <- (tree$BulkDensity_g_cm3-mean(tree$BulkDensity_g_cm3))/sd(tree$BulkDensity_g_cm3)
+tree.c$BiomassC <- (tree$BiomassC-mean(tree$BiomassC))/sd(tree$BiomassC)
+tree.c$Respiration <- (tree$Respiration-mean(tree$Respiration))/sd(tree$Respiration)
+tree.c$NO2_NO3 <- (tree$NO2_NO3-mean(tree$NO2_NO3))/sd(tree$NO2_NO3)
+tree.c$NH4 <- (tree$NH4-mean(tree$NH4))/sd(tree$NH4)
+tree.c$TIN <- (tree$TIN-mean(tree$TIN))/sd(tree$TIN)
+tree.c$BiomassN <- (tree$BiomassN-mean(tree$BiomassN))/sd(tree$BiomassN)
+tree.c$Mineralization <- (tree$Mineralization-mean(tree$Mineralization))/sd(tree$Mineralization)
+tree.c$Nitrification <- (tree$Nitrification-mean(tree$Nitrification))/sd(tree$Nitrification)
+tree.c$DEA <- (tree$DEA-mean(tree$DEA))/sd(tree$DEA)
+```
+
+```{r}
+# log-transform
+tree.l <- tree
+for (i in 1:326){
+  tree.l$RockMass_g[i] <- log(tree$RockMass_g[i] + abs(min(tree$RockMass_g)) + 0.001)
+  tree.l$RootMass_g[i] <- log(tree$RootMass_g[i] + abs(min(tree$RootMass_g)) + 0.001)
+  tree.l$Moisture_g[i] <- log(tree$Moisture_g[i] + abs(min(tree$Moisture_g)) + 0.001)
+  tree.l$BulkDensity_g_cm3[i] <- log(tree$BulkDensity_g_cm3[i] + abs(min(tree$BulkDensity_g_cm3)) + 0.001)
+  tree.l$BiomassC[i] <- log(tree$BiomassC[i] + abs(min(tree$BiomassC)) + 0.001)
+  tree.l$Respiration[i] <- log(tree$Respiration[i] + abs(min(tree$Respiration)) + 0.001)
+  tree.l$NO2_NO3[i] <- log(tree$NO2_NO3[i] + abs(min(tree$NO2_NO3)) + 0.001)
+  tree.l$NH4[i] <- log(tree$NH4[i] + abs(min(tree$NH4)) + 0.001)
+  tree.l$TIN[i] <- log(tree$TIN[i] + abs(min(tree$TIN)) + 0.001)
+  tree.l$BiomassN[i] <- log(tree$BiomassN[i] + abs(min(tree$BiomassN)) + 0.001)
+  tree.l$DEA[i] <- log(tree$DEA[i] + abs(min(tree$DEA)) + 0.001)
+}
+
+ggpairs(tree.l[,c(9:17)])
+ggpairs(tree.l[,c(18:25)])
+```
+
+
+
+## combined core sections
+```{r}
+# original dataset
+success.glmer <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NH4+Nitrification+DEA+BulkDensity_g_cm3+factor(coresection), family=binomial, data=tree)
+summary(success.glmer)
+  # error 1: model failed to converge
+  # error 2: model is nearly unidentifiable: large eigenvalue ratio - rescale variables?
+```
+
+```{r}
+# centered
+success.glmer.c <- glmer(success~(1|Site/Plot)+Diversity+Season+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NH4+Nitrification+DEA+BulkDensity_g_cm3+factor(coresection), family=binomial, data=tree.c)
+summary(success.glmer.c)
+  # error: model failed to converge with max|grad| = 0.203044 (tol = 0.002, component 1)
+
+success.glmer.c1 <- glmer(success~(1|Site/Plot)+Moisture_g+factor(coresection), family=binomial, data=tree.c)
+summary(success.glmer.c1) # with season
+  # order of removal: diversity, nitrification, respiration, bulk density, biomass C, NH4, DEA (stop showing error here), biomass N (error reappears),  root mass, season (stop showing error), rock mass
+  # no significant variables
+success.glmer.c2 <- glmer(success~(1|Site/Plot)+RockMass_g+Moisture_g+factor(coresection), family=binomial, data=tree.c)
+summary(success.glmer.c2) # without season
+  # order of removal: diversity, nitrification, biomass C, respiration, bulk density, root mass, NH4, DEA (stop showing error), biomass N 
+  # no significant variables
+success.glmer.c3 <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RootMass_g+BulkDensity_g_cm3, family=binomial, data=tree.c)
+summary(success.glmer.c3) # just retain variables of interest
+  # order of removal: diversity, nitrification, biomass C, respiration, bulk density, root mass, NH4, DEA (stop showing error), biomass N 
+  # singularity issues without bulk density
+  # no significant variables
+
+vif(success.glmer.c3)
+testZeroInflation(success.glmer.c3)
+success.simres <- simulateResiduals(fittedModel = success.glmer.c3)
+plot(success.simres)
+library(MuMIn)
+r.squaredGLMM(success.glmer.c3)
+
+(success.glmer.c3.logodds <- fixef(success.glmer.c3))
+(success.glmer.c3.odds <- exp(success.glmer.c3.logodds))
+(success.glmer.c3.prob <- inv.logit(success.glmer.c3.logodds))
+
+ ## every 1-unit change in X will result in the log odds of failure increase/decrease by `slope`
+    ## for every 1-unit change in temperature, the odds of failure increase/decrease by a factor of exp(slope) or (1-exp(slope))*100 percent
+
+log.odds <- coef(model)
+  # log-odds scale
+  # any value between positive and negative infinity
+    ## positive: increasing occurrence of an event
+    ## negative: decreasing occurrence of an event
+odds <- exp(coef(model))
+  # odds
+  # any value between 0 and positive infinity
+    ## >1: increasing occurrence of an event
+    ## <1: decreasing occurrence of an event
+inv.logit(log.odds)
+  # probability 
+    ## < 0.5: decreasing occurrence of an event
+    ## > 0.5: increasing occurrence of an event
+
+## graph 1: 
+success.eq1 <- function(x){inv.logit(success.glmer.c3.logodds[1]+success.glmer.c3.logodds[2]+success.glmer.c3.logodds[3]*x+success.glmer.c3.logodds[4]*mean(tree.c$BiomassC)+success.glmer.c3.logodds[5]*mean(tree.c$RootMass_g)+success.glmer.c3.logodds[6]*mean(tree.c$BulkDensity_g_cm3))}
+
+ggplot(tree.c, aes(x=BiomassN, y=success)) + 
+  geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) +
+  stat_function(fun=success.eq1, geom="line", linewidth=0.7, aes(color="BiomassN")) +
+  theme_bw() +
+  theme(legend.position = "right") +
+  labs(y = "Probability of afforestation success", x = "Biomass N, centered by z-score") +
+  scale_color_viridis("BiomassN", discrete = TRUE)
+
+
+## graph 2 (glm)
+ggplot(tree.c, aes(x=BiomassN, y=success)) + 
+  geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) + 
+  geom_line(stat = "smooth", method = "glm", method.args = list(family = "binomial"), size = 1.1) + 
+  geom_ribbon(stat="smooth", method = "glm", se = TRUE, alpha = 0.1, method.args = list(family = "binomial")) +
+  ylab("Probability of afforestation success") + 
+  xlab("Biomass N, centered by z-score") + 
+  theme_bw()
+
+```
+
+```{r}
+# log-transformed
+## full model
+success.glmer.l <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NH4+Nitrification+DEA+BulkDensity_g_cm3+factor(coresection), family=binomial, data=tree.l)
+summary(success.glmer.l)
+  # error: model failed to converge with max|grad| = 0.198764 (tol = 0.002, component 1)
+
+## backward reduced
+success.glmer.l3 <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC, family=binomial, data=tree.l)
+summary(success.glmer.l3) # just retain variables of interest
+  # order of removal: diversity, nitrification, biomass C, respiration, bulk density, root mass, NH4, DEA (stop showing error), biomass N 
+  # singularity issue
+```
+
+```{r}
+# As part of our troubleshoot processes, we also tested the following code (Thank you Ankita!) on the original dataset when we did not remove all the NAs. 
+test.data <- as.data.frame(MTNYCData_modified1[MTNYCData_modified1$coresection==2,])
+testing <- glmer(success~(1|Site)+scale(BiomassN)+scale(RockMass_g)+scale(Moisture_g)+scale(BulkDensity_g_cm3)+scale(BiomassC), family=binomial, data=test.data, control=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=2e4)))
+summary(testing)
+```
+
 
 
 ## separate core sections
 ### 0-10
 ```{r}
+# original 
 tree.s1 <- as.data.frame(tree[tree$CoreSection_cm =="0-10",])
 
-## Bulk density seem to have a strange outlier in the 1st core section:
-tree.s1 <- subset(tree.s1, BulkDensity_g_cm3 < 100)
-summary(tree.s1$BulkDensity_g_cm3)
-
-write.csv(tree.s1, "C:\\Users\\Siyu Sun\\Desktop\\ssy\\DKUwork\\2023Spring\\Applied Statistics\\Project\\tree_0-10.csv")
+# model
+success.s1.glmer <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NH4+Nitrification+DEA+BulkDensity_g_cm3, family=binomial, data=tree.s1)
+summary(success.s1.glmer)
+  ## order of removal: mineralization, biomass C, diversity, moisture, (DEA), rock mass
+  ## removed DEA and everything else becomes non-significant???
 ```
 
 ```{r}
-# model
-success.s1.glmer1 <- lme4::glmer(success~(1|Site)+BiomassN+RootMass_g+NO2_NO3+NH4+TIN+Nitrification+DEA, family=binomial, data=tree.s1)
-summary(success.s1.glmer1)
-  ## order of removal: mineralization, biomass C, diversity, moisture, (DEA), rock mass
-  ## removed DEA and everything else becomes non-significant???
+# center 
+tree.s1c <- as.data.frame(tree.c[tree.c$CoreSection_cm =="0-10",])
+
+# without season
+success.s1c.glmer <- glmer(success~(1|Site/Plot)+BiomassN+RockMass_g+Moisture_g, family=binomial, data=tree.s1c)
+summary(success.s1c.glmer)
+  ## order of removal: respiration, NH4, bulk density, root mass, nitrification, diversity, biomass c (error gone), DEA (is singular shows up)
+  ## error: model failed to converge
+
+# with season
+success.s1c.glmer1 <- glmer(success~(1|Site/Plot)+Season+BiomassN+RockMass_g+RootMass_g+Moisture_g+NH4+DEA+BulkDensity_g_cm3, family=binomial, data=tree.s1c)
+summary(success.s1c.glmer1)
+  ## order of removal: biomass c, respiration, diversity, nitrification, 
+  ## error: model failed to converge with max|grad| = 0.0249498 (tol = 0.002, component 1)
 ```
 
 
 ### 10-30
 ```{r}
+# original
 tree.s2 <- as.data.frame(tree[tree$CoreSection_cm =="10--30",])
-write.csv(tree.s2, "C:\\Users\\Siyu Sun\\Desktop\\ssy\\DKUwork\\2023Spring\\Applied Statistics\\Project\\tree_10-30.csv")
-```
 
-```{r}
-success.s2.glmer <- lme4::glmer(success~(1|Site)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+NO2_NO3+NH4+TIN+Mineralization+Nitrification+DEA, family=binomial, data=tree.s2)
+success.s2.glmer <- lme4::glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NO2_NO3+NH4+Nitrification+DEA+BulkDensity_g_cm3, family=binomial, data=tree.s2)
 summary(success.s2.glmer)
 
-success.s2.glmer1 <- lme4::glmer(success~(1|Site)+Moisture_g, family=binomial, data=tree.s2)
+success.s2.glmer1 <- lme4::glmer(success~(1|Site/Plot)+Moisture_g, family=binomial, data=tree.s2)
 summary(success.s2.glmer1)
   ## order of removal: 
   ## no variables are significant
+```
+
+```{r}
+# center 
+tree.s2c <- as.data.frame(tree.c[tree.c$coresection == 2,])
+
+# without season
+success.s2c.glmer <- glmer(success~(1|Site/Plot)+BiomassC+RockMass_g+Moisture_g, family=binomial, data=tree.s2c)
+summary(success.s2c.glmer)
+  ## order of removal: diversity, root mass, bulk density, DEA, NH4, nitrification, biomass N, respiration, rock mass
+  ## error: model failed to converge
+
+# with season
+success.s2c.glmer1 <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NO2_NO3+NH4+Nitrification+DEA+BulkDensity_g_cm3, family=binomial, data=tree.s2c)
+summary(success.s2c.glmer1)
+  ## order of removal: biomass c, respiration, diversity, nitrification, 
+  ## error: model failed to converge with max|grad| = 0.0249498 (tol = 0.002, component 1)
 ```
 
 
