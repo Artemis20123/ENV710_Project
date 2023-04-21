@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE
 
 ```{r}
 ## load packages
-pacman::p_load(ggplot2, lme4, lmerTest, GGally, car, DHARMa)
+pacman::p_load(ggplot2, lme4, lmerTest, GGally, car, DHARMa, boot)
 ```
 
 ```{r}
@@ -81,7 +81,7 @@ summary(success.glmer.c)
   # error: model failed to converge with max|grad| = 0.203044 (tol = 0.002, component 1)
 
 success.glmer.c1 <- glmer(success~(1|Site/Plot)+Moisture_g+factor(coresection), family=binomial, data=tree.c)
-summary(success.glmer.c1)
+summary(success.glmer.c1) # with season
   # order of removal: diversity, nitrification, respiration, bulk density, biomass C, NH4, DEA (stop showing error here), biomass N (error reappears),  root mass, season (stop showing error), rock mass
   # no significant variables
 success.glmer.c2 <- glmer(success~(1|Site/Plot)+RockMass_g+Moisture_g+factor(coresection), family=binomial, data=tree.c)
@@ -100,6 +100,10 @@ success.simres <- simulateResiduals(fittedModel = success.glmer.c3)
 plot(success.simres)
 library(MuMIn)
 r.squaredGLMM(success.glmer.c3)
+
+(success.glmer.c3.logodds <- fixef(success.glmer.c3))
+(success.glmer.c3.prob <- inv.logit(success.glmer.c3.logodds))
+
 ```
 
 ```{r}
@@ -149,18 +153,33 @@ summary(success.s1c.glmer1)
 
 ### 10-30
 ```{r}
+# original
 tree.s2 <- as.data.frame(tree[tree$CoreSection_cm =="10--30",])
-write.csv(tree.s2, "C:\\Users\\Siyu Sun\\Desktop\\ssy\\DKUwork\\2023Spring\\Applied Statistics\\Project\\tree_10-30.csv")
-```
 
-```{r}
-success.s2.glmer <- lme4::glmer(success~(1|Site)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+NO2_NO3+NH4+TIN+Mineralization+Nitrification+DEA, family=binomial, data=tree.s2)
+success.s2.glmer <- lme4::glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NO2_NO3+NH4+Nitrification+DEA+BulkDensity_g_cm3, family=binomial, data=tree.s2)
 summary(success.s2.glmer)
 
-success.s2.glmer1 <- lme4::glmer(success~(1|Site)+Moisture_g, family=binomial, data=tree.s2)
+success.s2.glmer1 <- lme4::glmer(success~(1|Site/Plot)+Moisture_g, family=binomial, data=tree.s2)
 summary(success.s2.glmer1)
   ## order of removal: 
   ## no variables are significant
+```
+
+```{r}
+# center 
+tree.s2c <- as.data.frame(tree.c[tree.c$coresection == 2,])
+
+# without season
+success.s2c.glmer <- glmer(success~(1|Site/Plot)+BiomassC+RockMass_g+Moisture_g, family=binomial, data=tree.s2c)
+summary(success.s2c.glmer)
+  ## order of removal: diversity, root mass, bulk density, DEA, NH4, nitrification, biomass N, respiration, rock mass
+  ## error: model failed to converge
+
+# with season
+success.s2c.glmer1 <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NO2_NO3+NH4+Nitrification+DEA+BulkDensity_g_cm3, family=binomial, data=tree.s2c)
+summary(success.s2c.glmer1)
+  ## order of removal: biomass c, respiration, diversity, nitrification, 
+  ## error: model failed to converge with max|grad| = 0.0249498 (tol = 0.002, component 1)
 ```
 
 
