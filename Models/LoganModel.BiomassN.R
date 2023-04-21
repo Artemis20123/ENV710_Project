@@ -210,3 +210,54 @@ summary(logNoNA6)
 
 #test of all models 
 AIC(noNA1, noNA2, noNA3, noNA4, noNA5, logNoNA1, logNoNA2, logNoNA3, logNoNA4, logNoNA5, logNoNA6)
+
+tree <- read.csv("MTNYCData_modified2_noDEAna.csv")
+tree.l <- tree
+for (i in 1:326){
+  tree.l$RockMass_g[i] <- log(tree$RockMass_g[i] + abs(min(tree$RockMass_g)) + 0.001)
+  tree.l$RootMass_g[i] <- log(tree$RootMass_g[i] + abs(min(tree$RootMass_g)) + 0.001)
+  tree.l$Moisture_g[i] <- log(tree$Moisture_g[i] + abs(min(tree$Moisture_g)) + 0.001)
+  tree.l$BulkDensity_g_cm3[i] <- log(tree$BulkDensity_g_cm3[i] + abs(min(tree$BulkDensity_g_cm3)) + 0.001)
+  tree.l$BiomassC[i] <- log(tree$BiomassC[i] + abs(min(tree$BiomassC)) + 0.001)
+  tree.l$Respiration[i] <- log(tree$Respiration[i] + abs(min(tree$Respiration)) + 0.001)
+  tree.l$NO2_NO3[i] <- log(tree$NO2_NO3[i] + abs(min(tree$NO2_NO3)) + 0.001)
+  tree.l$NH4[i] <- log(tree$NH4[i] + abs(min(tree$NH4)) + 0.001)
+  tree.l$TIN[i] <- log(tree$TIN[i] + abs(min(tree$TIN)) + 0.001)
+  tree.l$BiomassN[i] <- log(tree$BiomassN[i] + abs(min(tree$BiomassN)) + 0.001)
+  tree.l$DEA[i] <- log(tree$DEA[i] + abs(min(tree$DEA)) + 0.001)
+}
+
+ggpairs(tree.l[,c(9:17)])
+ggpairs(tree.l[,c(18:25)])
+
+#Model construction with logged variables 
+
+finalm1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + Respiration + NO2_NO3 + 
+                   NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + Year + BiomassC +
+                   (1|Site/Plot), data = tree.l) 
+summary(finalm1)
+
+finalm2 <- update(finalm1,.~.-Year)
+summary(finalm2)
+
+finalm3 <- update(finalm2,.~.-Respiration)
+summary(finalm3)
+
+finalm4 <- update(finalm3,.~.-RootMass_g)
+summary(finalm4)
+
+finalm5 <- update(finalm4,.~.-Moisture_g)
+summary(finalm5)
+
+finalm6 <- update(finalm5,.~.-Success)
+summary(finalm6)
+
+finalm7 <- update(finalm6,.~.-factor(coresection))
+summary(finalm7)
+
+AIC(finalm1, finalm2, finalm3, finalm4, finalm5, finalm6, finalm7)
+plot(finalm7)
+vif(finalm7)
+check_autocorrelation(finalm7)
+
+
