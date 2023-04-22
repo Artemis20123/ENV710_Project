@@ -1,13 +1,23 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE)
 ```
 
-```{r}
+```{r, include=FALSE}
 # Load dataset and packages
-tree <- read.csv("Data/MTNYCData_modified2_noDEAna.csv")
-pacman::p_load(dplyr, ggplot2, lme4, lmerTest, lmtest, GGally, car, DHARMa, boot, viridis, ggpubr, performance, MuMIn, merTools, lattice)
+```
+
+```{r}
+tree <- read.csv("C:\\Users\\Siyu Sun\\Documents\\ENV710_Project\\Data\\MTNYCData_modified2_noDEAna.csv")
+# tree <- read.csv("MTNYCData_modified2_noDEAna.csv")
+pacman::p_load(dplyr, ggplot2, lme4, lmerTest, lmtest, GGally, car, DHARMa, boot, 
+               viridis, ggpubr, performance, MuMIn, merTools, lattice)
 
 ```
 
@@ -21,17 +31,34 @@ ggpairs(tree[,c(18:25)])
 ```{r}
 # Model 1: Biomass C
 ## Full model
-lm1 <- lmer(log(BiomassC) ~ Success + factor(diversity) + factor(Season) + Respiration + BiomassN + NO2_NO3 + NH4 + RootMass_g + Moisture_g + factor(coresection) + Year + (1|Site/Plot), data = tree)
+lm1 <- lmer(log(BiomassC) ~ factor(Success) + factor(Diversity) + factor(Season) + 
+              log(Respiration) + log(BiomassN + 6.53271102 + 0.001) + 
+              log(NO2_NO3 + 5.9671545 + 0.001) + log(NH4 + 2.422020695 + 0.001) + 
+              log(RootMass_g + 0.782 + 0.001) + log(Moisture_g) + factor(coresection) + 
+              factor(Year) + (1|Site/Plot), data = tree)
 summary(lm1)
 
 ## Model reduction
-lm2 <- update(lm1, ~.-factor(Season))
-lm3 <- update(lm2, ~.-NH4)
-lm4 <- update(lm3, ~.-RootMass_g)
-lm5 <- update(lm4, ~.-Year)
-lm6 <- update(lm5, ~.-factor(diversity))
+lm2 <- update(lm1, ~.-log(RootMass_g + 0.782 + 0.001))
+# summary(lm2)
+lm3 <- update(lm2, ~.-factor(Year))
+# summary(lm3)
+lm4 <- update(lm3, ~.-log(NO2_NO3 + 5.9671545 + 0.001))
+# summary(lm4)
+lm5 <- update(lm4, ~.-factor(Success))
+# summary(lm5)
+lm6 <- update(lm5, ~.-log(NH4 + 2.422020695 + 0.001))
 summary(lm6)
-AIC(lm1, lm2, lm3,lm4,lm5,lm6)
+
+### delete the outlier according to the outlier plot
+tree1 <- tree[-c(33),]
+lm7 <- lmer(log(BiomassC) ~ factor(Diversity) + factor(Season) + log(Respiration) +  
+              log(BiomassN + 4.79350047 + 0.001) + log(Moisture_g) + factor(coresection) + 
+              (1 | Site/Plot), data = tree1)
+summary(lm7)
+
+AIC(lm1, lm2, lm3,lm4,lm5,lm6, lm7)
+
 
 ## Assumptions
 ### dept vars normality
@@ -54,20 +81,84 @@ influencePlot(lm6)
 vif(lm6)
 check_model(lm6, check = c("vif"))
 
-## Graphs
+```
 
+```{r}
+## Graphs
+```
+
+```{r, fig.cap = "Effects of Respiration and Diversity on Biomass C"}
+### Respiration-diversity
+a <- fixef(lm7)
+
+eq.re <- function(x){exp(a[1]+a[2]+a[4]*log(x)+ a[5]*mean(log(tree1$BiomassN + 
+                                                                4.79350047 + 0.001))+
+                           a[6]*mean(log(tree1$Moisture_g)))}
+
+eq.re1 <- function(x){exp(a[1]+a[4]*log(x)+ a[5]*mean(log(tree1$BiomassN + 
+                                                            4.79350047 + 0.001))+
+                            a[6]*mean(log(tree1$Moisture_g)))}
+
+library(viridis)
+ggplot(tree1, aes(x=Respiration, y=BiomassC)) + 
+  geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) +
+  stat_function(fun=eq.re, geom="line", linewidth=0.7, aes(color="Low")) +
+  stat_function(fun=eq.re1, geom="line", linewidth=0.7, aes(color="High")) + 
+  theme_bw() +
+  theme(legend.position = "right") +
+  labs(y = "BiomassC", x = "Respiration") +
+  scale_color_viridis("Diversity", discrete = TRUE)
+
+```
+
+```{r, fig.cap = 'Effects of Moisture and Diversity on Biomass C'}
+## Moisture-diversity
+a <- fixef(lm7)
+
+eq.mo <- function(x){exp(a[1]+a[2]+a[4]*mean(log(tree1$Respiration))+ 
+                           a[5]*mean(log(tree1$BiomassN + 4.79350047 + 0.001))+
+                           a[6]*log(x))}
+
+eq.mo1 <- function(x){exp(a[1]+a[4]*mean(log(tree1$Respiration))+ 
+                            a[5]*mean(log(tree1$BiomassN + 4.79350047 + 0.001))+
+                            a[6]*log(x))}
+
+ggplot(tree1, aes(x=Moisture_g, y=BiomassC)) + 
+  geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) +
+  stat_function(fun=eq.mo, geom="line", linewidth=0.7, aes(color="Low")) +
+  stat_function(fun=eq.mo1, geom="line", linewidth=0.7, aes(color="High")) + 
+  theme_bw() +
+  theme(legend.position = "right") +
+  labs(y = "BiomassC", x = "Moisture") +
+  scale_color_viridis("Diversity", discrete = TRUE)
+```
+
+```{r, fig.width=8,fig.height=4,fig.align='center', fig.cap="Mean biomass carbon and differences among core section groups"}
+# Calculate mean and standard error for each year
+mean_data <- aggregate(tree1$BiomassC, by=list(group=tree1$coresection), FUN=mean)
+names(mean_data)[2] <- "Mean"
+se_data <- aggregate(tree1$BiomassC, by=list(group=tree1$coresection), FUN=sd)
+se_data$se <- se_data$x / sqrt(length(tree1$BiomassC))
+
+# Create bar plot with error bars
+ggplot(mean_data, aes(x=factor(group), y=Mean, fill=factor(group))) +
+  geom_bar(stat="identity", position="dodge", alpha = 0.5) +
+  geom_errorbar(aes(ymin=Mean-se_data$se, ymax=Mean+se_data$se),width=.2) +
+  labs(x="Core Section Groups", y="Biomass",fill = "Core Section") +
+  scale_fill_discrete(labels=c("0-10cm","10-30cm","above 30cm")) +
+  theme_bw()
 ```
 
 ```{r}
 # Model 2: Biomass N
-
 ## log-transform all of the variables 
 tree.l <- tree
 for (i in 1:326){
   tree.l$RockMass_g[i] <- log(tree$RockMass_g[i] + abs(min(tree$RockMass_g)) + 0.001)
   tree.l$RootMass_g[i] <- log(tree$RootMass_g[i] + abs(min(tree$RootMass_g)) + 0.001)
   tree.l$Moisture_g[i] <- log(tree$Moisture_g[i] + abs(min(tree$Moisture_g)) + 0.001)
-  tree.l$BulkDensity_g_cm3[i] <- log(tree$BulkDensity_g_cm3[i] + abs(min(tree$BulkDensity_g_cm3)) + 0.001)
+  tree.l$BulkDensity_g_cm3[i] <- log(tree$BulkDensity_g_cm3[i] + 
+                                       abs(min(tree$BulkDensity_g_cm3)) + 0.001)
   tree.l$BiomassC[i] <- log(tree$BiomassC[i] + abs(min(tree$BiomassC)) + 0.001)
   tree.l$Respiration[i] <- log(tree$Respiration[i] + abs(min(tree$Respiration)) + 0.001)
   tree.l$NO2_NO3[i] <- log(tree$NO2_NO3[i] + abs(min(tree$NO2_NO3)) + 0.001)
@@ -81,14 +172,13 @@ for (i in 1:326){
 no.out.tree.l <- tree.l[-c(33,29,193),]
 
 ## Full model
-
-noY.finalm1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + Respiration + NO2_NO3 + 
-                      NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + BiomassC +
+noY.finalm1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + 
+                      Respiration + NO2_NO3 + NH4 + Nitrification + RootMass_g + 
+                      Moisture_g + factor(coresection) + BiomassC +
                       (1|Site/Plot), data = no.out.tree.l) 
 summary(noY.finalm1)
 
 ## Model reduction
-
 noY.finalm2 <- update(noY.finalm1,.~.-Respiration)
 summary(noY.finalm2)
 
@@ -127,18 +217,18 @@ influencePlot(FinalModel)
 vif(FinalModel)
 performance::check_model(FinalModel, check = c("vif"))
 
-
 ## Graphs
- 
 Ncoef <- fixef(FinalModel)
 Ncoef
 
 success.eq1 <- function(x){Ncoef[1]+Ncoef[2]+
     Ncoef[3]+Ncoef[4]*mean(no.out.tree.l$NO2_NO3)+
-    Ncoef[5]*mean(no.out.tree.l$NH4)+Ncoef[6]*mean(no.out.tree.l$Nitrification)+Ncoef[7]*x}
+    Ncoef[5]*mean(no.out.tree.l$NH4)+Ncoef[6]*mean(no.out.tree.l$Nitrification)+
+    Ncoef[7]*x}
 success.eq2 <- function(x){Ncoef[1]+
     Ncoef[3]+Ncoef[4]*mean(no.out.tree.l$NO2_NO3)+
-    Ncoef[5]*mean(no.out.tree.l$NH4)+Ncoef[6]*mean(no.out.tree.l$Nitrification)+Ncoef[7]*x}
+    Ncoef[5]*mean(no.out.tree.l$NH4)+Ncoef[6]*mean(no.out.tree.l$Nitrification)+
+    Ncoef[7]*x}
 
 ggplot(no.out.tree.l, aes(x=BiomassC, y=BiomassN)) + 
   geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) +
@@ -158,19 +248,24 @@ tree.c <- tree
 tree.c$RockMass_g <- (tree$RockMass_g-mean(tree$RockMass_g))/sd(tree$RockMass_g)
 tree.c$RootMass_g <- (tree$RootMass_g-mean(tree$RootMass_g))/sd(tree$RootMass_g)
 tree.c$Moisture_g <- (tree$Moisture_g-mean(tree$Moisture_g))/sd(tree$Moisture_g)
-tree.c$BulkDensity_g_cm3 <- (tree$BulkDensity_g_cm3-mean(tree$BulkDensity_g_cm3))/sd(tree$BulkDensity_g_cm3)
+tree.c$BulkDensity_g_cm3 <- (tree$BulkDensity_g_cm3-
+                               mean(tree$BulkDensity_g_cm3))/sd(tree$BulkDensity_g_cm3)
 tree.c$BiomassC <- (tree$BiomassC-mean(tree$BiomassC))/sd(tree$BiomassC)
 tree.c$Respiration <- (tree$Respiration-mean(tree$Respiration))/sd(tree$Respiration)
 tree.c$NO2_NO3 <- (tree$NO2_NO3-mean(tree$NO2_NO3))/sd(tree$NO2_NO3)
 tree.c$NH4 <- (tree$NH4-mean(tree$NH4))/sd(tree$NH4)
 tree.c$TIN <- (tree$TIN-mean(tree$TIN))/sd(tree$TIN)
 tree.c$BiomassN <- (tree$BiomassN-mean(tree$BiomassN))/sd(tree$BiomassN)
-tree.c$Mineralization <- (tree$Mineralization-mean(tree$Mineralization))/sd(tree$Mineralization)
-tree.c$Nitrification <- (tree$Nitrification-mean(tree$Nitrification))/sd(tree$Nitrification)
+tree.c$Mineralization <- (tree$Mineralization-
+                            mean(tree$Mineralization))/sd(tree$Mineralization)
+tree.c$Nitrification <- (tree$Nitrification-
+                           mean(tree$Nitrification))/sd(tree$Nitrification)
 tree.c$DEA <- (tree$DEA-mean(tree$DEA))/sd(tree$DEA)
 
 ## Full model
-success.glmer.c <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+RootMass_g+Moisture_g+Respiration+NH4+Nitrification+DEA+BulkDensity_g_cm3+factor(coresection), family=binomial, data=tree.c)
+success.glmer.c <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RockMass_g+
+                           RootMass_g+Moisture_g+Respiration+NH4+Nitrification+DEA+
+                           BulkDensity_g_cm3+factor(coresection), family=binomial, data=tree.c)
 summary(success.glmer.c)
   # error: model failed to converge with max|grad| = 0.203044 (tol = 0.002, component 1)
 
@@ -185,19 +280,50 @@ success.glmer.c7 <- update(success.glmer.c6, .~.-NH4)
 success.glmer.c8 <- update(success.glmer.c7, .~.-DEA) # stop showing error
 success.glmer.c9 <- update(success.glmer.c8, .~.-BiomassN) # no significant variables
 ### Model with variables of interest
-success.glmer.c10 <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+RootMass_g+BulkDensity_g_cm3, family=binomial, data=tree.c)
+success.glmer.c10 <- glmer(success~(1|Site/Plot)+Diversity+BiomassN+BiomassC+
+                             RootMass_g+BulkDensity_g_cm3, family=binomial, data=tree.c)
 summary(success.glmer.c10)
   # singularity issues without bulk density
   # no significant variables
 
 ## Assumptions
+vif(success.glmer.c3)
 
+## Coefficients
+(success.glmer.c3.logodds <- fixef(success.glmer.c3))
+(success.glmer.c3.odds <- exp(success.glmer.c3.logodds))
+(success.glmer.c3.prob <- inv.logit(success.glmer.c3.logodds))
 
 ## graphs
+success.eq1 <- function(x){inv.logit(success.glmer.c3.logodds[1]+success.glmer.c3.logodds[2]+
+                                       success.glmer.c3.logodds[3]*x+
+                                       success.glmer.c3.logodds[4]*mean(tree.c$BiomassC)+
+                                       success.glmer.c3.logodds[5]*mean(tree.c$RootMass_g)+
+                                       success.glmer.c3.logodds[6]*mean(tree.c$BulkDensity_g_cm3))}
 
+gg1 <- ggplot(tree.c, aes(x=BiomassN, y=success)) + 
+  geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) +
+  stat_function(fun=success.eq1, geom="line", linewidth=0.7, color="blue") +
+  theme_bw() +
+  labs(y = "Probability of afforestation success", 
+       x = "Biomass N, centered by z-score")
+
+## graph 2 (glm)
+gg2 <- ggplot(tree.c, aes(x=BiomassN, y=success)) + 
+  geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) + 
+  geom_line(stat = "smooth", method = "glm", method.args = list(family = "binomial"), 
+            size = 1.1, color="purple") + 
+  geom_ribbon(stat="smooth", method = "glm", se = TRUE, alpha = 0.1, 
+              method.args = list(family = "binomial")) +
+  ylab("Probability of afforestation success") + 
+  xlab("Biomass N, centered by z-score") + 
+  theme_bw()
 ```
 
-
+\newpage
+# Appendix 2 Code
+```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
+```
 
 
 
