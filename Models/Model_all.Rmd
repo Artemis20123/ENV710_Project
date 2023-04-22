@@ -61,13 +61,93 @@ check_model(lm6, check = c("vif"))
 ```{r}
 # Model 2: Biomass N
 
+## log-transform all of the variables 
+tree.l <- tree
+for (i in 1:326){
+  tree.l$RockMass_g[i] <- log(tree$RockMass_g[i] + abs(min(tree$RockMass_g)) + 0.001)
+  tree.l$RootMass_g[i] <- log(tree$RootMass_g[i] + abs(min(tree$RootMass_g)) + 0.001)
+  tree.l$Moisture_g[i] <- log(tree$Moisture_g[i] + abs(min(tree$Moisture_g)) + 0.001)
+  tree.l$BulkDensity_g_cm3[i] <- log(tree$BulkDensity_g_cm3[i] + abs(min(tree$BulkDensity_g_cm3)) + 0.001)
+  tree.l$BiomassC[i] <- log(tree$BiomassC[i] + abs(min(tree$BiomassC)) + 0.001)
+  tree.l$Respiration[i] <- log(tree$Respiration[i] + abs(min(tree$Respiration)) + 0.001)
+  tree.l$NO2_NO3[i] <- log(tree$NO2_NO3[i] + abs(min(tree$NO2_NO3)) + 0.001)
+  tree.l$NH4[i] <- log(tree$NH4[i] + abs(min(tree$NH4)) + 0.001)
+  tree.l$TIN[i] <- log(tree$TIN[i] + abs(min(tree$TIN)) + 0.001)
+  tree.l$BiomassN[i] <- log(tree$BiomassN[i] + abs(min(tree$BiomassN)) + 0.001)
+  tree.l$DEA[i] <- log(tree$DEA[i] + abs(min(tree$DEA)) + 0.001)
+}
+
+### Remove highly influencial observations 
+no.out.tree.l <- tree.l[-c(33,29,193),]
+
 ## Full model
+
+noY.finalm1 <- lmer(BiomassN ~ Success + factor(diversity) + factor(Season) + Respiration + NO2_NO3 + 
+                      NH4 + Nitrification + RootMass_g + Moisture_g + factor(coresection) + BiomassC +
+                      (1|Site/Plot), data = no.out.tree.l) 
+summary(noY.finalm1)
 
 ## Model reduction
 
+noY.finalm2 <- update(noY.finalm1,.~.-Respiration)
+summary(noY.finalm2)
+
+noY.finalm3 <- update(noY.finalm2,.~.-Success)
+summary(noY.finalm3)
+
+noY.finalm4 <- update(noY.finalm3,.~.-factor(coresection))
+summary(noY.finalm4)
+
+noY.finalm5 <- update(noY.finalm4,.~.-Moisture_g)
+summary(noY.finalm5)
+
+FinalModel <- update(noY.finalm5,.~.-RootMass_g)
+
+AIC(noY.finalm1, noY.finalm2, noY.finalm3, noY.finalm4, noY.finalm5, FinalModel)
+
 ## Assumptions
+### Residuals mean & normality
+mean(residuals(FinalModel))
+shapiro.test(residuals(FinalModel))
+library(DHARMa)
+lmm6 <- simulateResiduals(fittedModel = FinalModel) 
+plot(lmm6)
+library(performance)
+performance::check_model(FinalModel, check = c("reqq", "qq", "linearity"))
+### Goodness of fit / R2 FE RE
+library(merTools)
+merTools::plotFEsim(FEsim(FinalModel), intercept = T)
+library(lattice)
+dotplot(ranef(FinalModel))
+### Outlier test
+library(car)
+outlierTest(FinalModel)
+influencePlot(FinalModel)
+### Multicollinearity
+vif(FinalModel)
+performance::check_model(FinalModel, check = c("vif"))
+
 
 ## Graphs
+ 
+Ncoef <- fixef(FinalModel)
+Ncoef
+
+success.eq1 <- function(x){Ncoef[1]+Ncoef[2]+
+    Ncoef[3]+Ncoef[4]*mean(no.out.tree.l$NO2_NO3)+
+    Ncoef[5]*mean(no.out.tree.l$NH4)+Ncoef[6]*mean(no.out.tree.l$Nitrification)+Ncoef[7]*x}
+success.eq2 <- function(x){Ncoef[1]+
+    Ncoef[3]+Ncoef[4]*mean(no.out.tree.l$NO2_NO3)+
+    Ncoef[5]*mean(no.out.tree.l$NH4)+Ncoef[6]*mean(no.out.tree.l$Nitrification)+Ncoef[7]*x}
+
+ggplot(no.out.tree.l, aes(x=BiomassC, y=BiomassN)) + 
+  geom_jitter(height = 0.02, width = 0.02, alpha = 0.3, size = 3) +
+  stat_function(fun=success.eq1, geom="line", linewidth=0.7, aes(color="High")) +
+  stat_function(fun=success.eq2, geom="line", linewidth=0.7, aes(color="Low")) + 
+  theme_bw() +
+  theme(legend.position = "right") +
+  labs(y = "BiomassN", x = "BiomassC") +
+  scale_color_viridis("Diversity", discrete = TRUE)
 
 ```
 
