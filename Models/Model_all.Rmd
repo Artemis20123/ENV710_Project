@@ -61,8 +61,7 @@ check_model(lm6, check = c("vif"))
 ```{r}
 # Model 2: Biomass N
 
-### log-transform all of the variables 
-
+## log-transform all of the variables 
 tree.l <- tree
 for (i in 1:326){
   tree.l$RockMass_g[i] <- log(tree$RockMass_g[i] + abs(min(tree$RockMass_g)) + 0.001)
