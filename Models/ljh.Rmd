@@ -65,14 +65,6 @@ ggplot(mean_data, aes(x=factor(group), y=Mean, fill=factor(group))) +
 
 ## Discussion
 
-High success afforestation sites had significantly larger carbon pools than low success afforestation sites and degraded NYC sites. We suggest that these differences were created by interactions between initial site conditions that facilitated plant community establishment and growth, which in turn increased soil carbon accumulation. These initial site conditions include land use history that influences soil physical and chemical factors, as well as proximity to existing forest stands.
-
-Organic carbon in turn influences soil biogeochemical properties and functions through its influence on nutrient cycling and water retention, which supports plant growth (Ontl and Schulte, 2012).
-
-Diversity treatments had no effect on soil carbon levels, but these may need a longer time period to emerge.
-
-suggest that afforestation may enhance the capacity of urban soils to store carbon compared to urban degraded soils, but that urban soil properties and site characteristics constrain this capacity
-
 ## Appendix
 
 ```{r setup}
@@ -106,7 +98,8 @@ lm6 <- update(lm5, ~.-log(NH4 + 2.422020695 + 0.001))
 summary(lm6)
 
 # delete the outlier according to the outlier plot
-lm7 <- lmer(log(BiomassC) ~ factor(Diversity) + factor(Season) + log(Respiration) +  log(BiomassN + 4.79350047 + 0.001) + log(Moisture_g) + factor(coresection) +      (1 | Site/Plot), data = df2)
+df2 <- df1[-33,]
+lm7 <- lmer(log(BiomassC) ~ factor(Diversity) + factor(Season) + log(Respiration) +  log(BiomassN + 4.795) + log(Moisture_g) + factor(coresection) + (1 | Site/Plot), data = df2)
 summary(lm7)
 
 AIC(lm1, lm2, lm3,lm4,lm5,lm6, lm7)
@@ -128,7 +121,7 @@ MuMIn::r.squaredGLMM(lm7)
 library(merTools)
 merTools::plotFEsim(FEsim(lm7), intercept = T)
 library(lattice)
-dotplot(ranef(lm7))
+dotplot(ranef(lm7), par.strip.text = list(cex = 0.005))
 ```
 
 ```{r}

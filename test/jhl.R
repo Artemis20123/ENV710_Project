@@ -74,9 +74,6 @@ ggplot(data = df.10_30, aes(y = TotalSoilC, x = success)) + geom_boxplot(aes(fil
 df1 <- read.csv("Data/MTNYCData_modified.csv")
 
 df1$coresection <- 3
-df1$coresection <- ifelse(df1$CoreSection_cm == '0-10', 1, 0)
-df1$coresection <- ifelse(df1$CoreSection_cm == '10--30', 1, 0)
-
 i <- 1
 df1$coresection <- 3
 for (i in 1:392) {
@@ -87,7 +84,7 @@ for (i in 1:392) {
     df1$coresection[i] = 2
   }
 }
-write.csv(df1, "Data/MTNYCData_modified.csv")
+write.csv(df1, "Data/MTNYCData_updated.csv")
 
 for (i in 1:392) {
   if (df1$CoreSection_cm[i] == '0-10') {

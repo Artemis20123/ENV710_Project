@@ -1,0 +1,139 @@
+```{r setup}
+library(dplyr)
+library(lme4)
+library(lmerTest)
+library(lmtest)
+library(here)
+library(ggplot2)
+
+df1 <- read.csv(here("Data/MTNYCData_modified2_noDEAna.csv"))
+```
+
+## Model reduction
+
+```{r}
+lm1 <- lmer(log(BiomassC) ~ factor(Success) + factor(Diversity) + factor(Season) + log(Respiration) + log(BiomassN + 6.53271102 + 0.001) + log(NO2_NO3 + 5.9671545 + 0.001) + log(NH4 + 2.422020695 + 0.001) + log(RootMass_g + 0.782 + 0.001) + log(Moisture_g) + factor(coresection) + factor(Year) + (1|Site/Plot), data = df1)
+# summary(lm1)
+
+lm2 <- update(lm1, ~.-log(RootMass_g + 0.782 + 0.001))
+# summary(lm2)
+
+lm3 <- update(lm2, ~.-factor(Year))
+# summary(lm3)
+
+lm4 <- update(lm3, ~.-log(NO2_NO3 + 5.9671545 + 0.001))
+# summary(lm4)
+
+lm5 <- update(lm4, ~.-factor(Success))
+# summary(lm5)
+
+lm6 <- update(lm5, ~.-log(NH4 + 2.422020695 + 0.001))
+summary(lm6)
+
+# delete the outlier according to the outlier plot
+lm7 <- lmer(log(BiomassC) ~ factor(Diversity) + factor(Season) + log(Respiration) +  log(BiomassN + 4.79350047 + 0.001) + log(Moisture_g) + factor(coresection) +      (1 | Site/Plot), data = df2)
+summary(lm7)
+
+AIC(lm1, lm2, lm3,lm4,lm5,lm6, lm7)
+```
+
+## Assumption checks
+
+### variable normality
+
+```{r}
+# dept vars normality
+shapiro.test(df1$BiomassC)
+shapiro.test(log(df1$BiomassC))
+
+# indpt vars
+## all of them are not normally distributed
+```
+
+### Residuals mean & normality
+
+```{r}
+mean(residuals(lm7))
+shapiro.test(residuals(lm7))
+```
+
+```{r, fig.cap="performance plots", fig.pos="h"}
+# i think the one below is better
+library(DHARMa)
+lmm7 <- simulateResiduals(fittedModel = lm7) 
+plot(lmm7)
+
+library(performance)
+performance::check_model(lm7, check = c("reqq", "qq", "linearity"))
+```
+
+### Goodness of fit / R2 FE RE
+
+```{r}
+library(MuMIn)
+MuMIn::r.squaredGLMM(lm7)
+
+library(merTools)
+merTools::plotFEsim(FEsim(lm7), intercept = T)
+library(lattice)
+dotplot(ranef(lm7))
+```
+
+### Outlier test
+
+```{r}
+library(car)
+outlierTest(lm7)
+influencePlot(lm7)
+```
+
+### Multicollinearity
+
+```{r}
+# vif(lm7)
+performance::check_model(lm7, check = c("vif"))
+```
+
+## Results
+
+### Biomass C
+
+Based on similar hypotheses to those for biomass nitrogen, the minimum adequate model for biomass carbon included the following main fixed effects in order of their effect size: respiration, moisture, core section depth, season, biomass N, and diversity. Additionally, the model accounted for site and plot differences by including them as a random effect. The model was fitted using the REML (restricted maximum likelihood) method and Satterthwaite's method was used to estimate the degrees of freedom. Main findings are listed as follows:
+
+-   The intercept value is statistically significant ($t$ = 24.646, $df$ = 238.6, $p$ \< 2.2e-16), indicating that the model predicts a non-zero value for the biomass carbon when all other predictors are equal to zero. Specifically, the intercept value of 5.41 corresponds to a predicted mean value of biomass carbon of 224.5 g ($exp^{5.41}$) when all other numeric predictors are equal to zero and the categorical predictors are high diversity, autumn, and core section depth in 0-10cm.
+
+-   For the nominal explanatory variables, the low diversity group of 2 tree species had a significantly higher mean biomass carbon, with an increase of 12.5% ((exp(0.1179) - 1 ) \* 100) compared to the high diversity group of 6 tree species ($t$ = 2.429, $df$ = 39.4, $p$ =0.020). Moreover, the season variable has a significant effect on biomass C, with a decrease of 17.6% from autumn to summer ($t$ = -3.305, $df$ = 305.6, $p$ =0.001). The core section depth predictor also had a significant effect on biomass C. Changing from the 0-10cm depth to 10-30cm led to a mean biomass carbon decrease of 26.8% ($t$ = -4.543, $df$ = 297.4, $p$ =8.07e-06), while changing to above 30 cm caused a biomass decrease of 40.9% ($t$ = -5.758, $df$ =281.5, $p$ =2.22e-08).
+
+-   For the numerical explanatory variables, every 1% increase in respiration, moisture, and biomass N, the mean biomass carbon will increase 0.455% ($t$ = 8.085, $df$ = 287.0, $p$ =1.76e-14), 0.383% ($t$ = 8.246, $df$ = 315.4, $p$ =4.46e-15), and 0.149% ($t$ = 5.688, $df$ = 314.7, $p$ =2.94e-08) accordingly.
+
+The three biggest effects are illustrated in the following graphs. The model seems to have a good fit to the data as both R2m (81.98%) and R2c (81.98%) are relatively high. The illustrations of fixed and random effects are shown in the appendix. Besides, the normality of residuals have been checked
+
+```{r, fig.width=8,fig.height=4,fig.align='center', fig.cap="Mean biomass carbon and differences among core section groups"}
+# Calculate mean and standard error for each year
+mean_data <- aggregate(df2$BiomassC, by=list(group=df2$coresection), FUN=mean)
+names(mean_data)[2] <- "Mean"
+se_data <- aggregate(df2$BiomassC, by=list(group=df2$coresection), FUN=sd)
+se_data$se <- se_data$x / sqrt(length(df2$BiomassC))
+
+# Create bar plot with error bars
+ggplot(mean_data, aes(x=factor(group), y=Mean, fill=factor(group))) +
+  geom_bar(stat="identity", position="dodge", alpha = 0.5) +
+  geom_errorbar(aes(ymin=Mean-se_data$se, ymax=Mean+se_data$se),width=.2) +
+  labs(x="Core Section Groups", y="Biomass",fill = "Core Section") +
+  scale_fill_discrete(labels=c("0-10cm","10-30cm","above 30cm")) +
+  theme_bw()
+```
+
+```{r}
+
+```
+
+## Discussion
+
+High success afforestation sites had significantly larger carbon pools than low success afforestation sites and degraded NYC sites. We suggest that these differences were created by interactions between initial site conditions that facilitated plant community establishment and growth, which in turn increased soil carbon accumulation. These initial site conditions include land use history that influences soil physical and chemical factors, as well as proximity to existing forest stands.
+
+Organic carbon in turn influences soil biogeochemical properties and functions through its influence on nutrient cycling and water retention, which supports plant growth (Ontl and Schulte, 2012).
+
+Diversity treatments had no effect on soil carbon levels, but these may need a longer time period to emerge.
+
+suggest that afforestation may enhance the capacity of urban soils to store carbon compared to urban degraded soils, but that urban soil properties and site characteristics constrain this capacity
